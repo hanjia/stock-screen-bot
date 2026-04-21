@@ -1,0 +1,1 @@
+0 9,12 * * 1-5 /path/to/your/script.sh
