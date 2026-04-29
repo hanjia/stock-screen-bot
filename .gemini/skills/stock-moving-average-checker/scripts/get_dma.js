@@ -1,24 +1,34 @@
 #!/usr/bin/env node
 
 /**
- * Fetches the 5-day moving average (5DMA) for a stock ticker from Yahoo Finance.
+ * Fetches the moving average (DMA) for a stock ticker from Yahoo Finance for a specified period.
  * 
  * Usage:
- * node get_5dma.js AAPL
+ * node get_dma.js <ticker> <period>
+ * 
+ * Example:
+ * node get_dma.js AAPL 50
  */
 
 const https = require('https');
 
-async function get5DMA() {
+async function getDMA() {
   const ticker = process.argv[2];
+  const period = parseInt(process.argv[3], 10);
   
-  if (!ticker) {
-    console.error('Error: No ticker symbol provided.');
+  if (!ticker || !period || isNaN(period)) {
+    console.error('Usage: node get_dma.js <ticker> <period>');
     process.exit(1);
   }
 
-  // We request 10 days to ensure we have at least 5 valid closing prices (considering weekends/holidays)
-  const url = `https://query1.finance.yahoo.com/v8/finance/chart/${ticker.toUpperCase()}?range=10d&interval=1d`;
+  // Determine appropriate range based on period
+  let range = '1mo';
+  if (period > 20) range = '3mo';
+  if (period > 60) range = '6mo';
+  if (period > 120) range = '1y';
+  if (period > 250) range = '2y';
+
+  const url = `https://query1.finance.yahoo.com/v8/finance/chart/${ticker.toUpperCase()}?range=${range}&interval=1d`;
 
   const options = {
     headers: {
@@ -45,21 +55,20 @@ async function get5DMA() {
 
         const closePrices = result.indicators.quote[0].close.filter(p => p !== null && p !== undefined);
         
-        if (closePrices.length < 5) {
-          console.error(`Error: Not enough data to calculate 5DMA for "${ticker}". Only found ${closePrices.length} days.`);
+        if (closePrices.length < period) {
+          console.error(`Error: Not enough data to calculate ${period}DMA for "${ticker}". Only found ${closePrices.length} days. Try a longer period or check the ticker.`);
           process.exit(1);
         }
 
-        // Get the last 5 closing prices
-        const last5 = closePrices.slice(-5);
-        const sum = last5.reduce((acc, price) => acc + price, 0);
-        const dma5 = sum / 5;
+        // Get the last 'period' closing prices
+        const lastPeriod = closePrices.slice(-period);
+        const sum = lastPeriod.reduce((acc, price) => acc + price, 0);
+        const dma = sum / period;
 
         const meta = result.meta;
         console.log(`Symbol: ${meta.symbol}`);
         console.log(`Current Price: ${meta.regularMarketPrice.toFixed(2)} ${meta.currency}`);
-        console.log(`5-Day Moving Average (5DMA): ${dma5.toFixed(2)} ${meta.currency}`);
-        console.log(`Prices used: ${last5.map(p => p.toFixed(2)).join(', ')}`);
+        console.log(`${period}-Day Moving Average (${period}DMA): ${dma.toFixed(2)} ${meta.currency}`);
       } catch (error) {
         console.error('Error parsing response from Yahoo Finance.');
         console.error(error.message);
@@ -72,4 +81,4 @@ async function get5DMA() {
   });
 }
 
-get5DMA();
+getDMA();

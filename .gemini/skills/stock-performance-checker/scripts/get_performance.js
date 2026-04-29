@@ -1,23 +1,29 @@
 #!/usr/bin/env node
 
 /**
- * Fetches the 1-month stock change percentage from Yahoo Finance.
+ * Fetches the stock change percentage from Yahoo Finance for a given range.
  * 
  * Usage:
- * node get_1month_change.js AAPL
+ * node get_performance.js <ticker> <range>
+ * 
+ * Example:
+ * node get_performance.js AAPL 5d
+ * node get_performance.js AAPL 1mo
  */
 
 const https = require('https');
 
-async function get1MonthChange() {
+async function getPerformance() {
   const ticker = process.argv[2];
+  const range = process.argv[3] || '5d';
   
   if (!ticker) {
-    console.error('Error: No ticker symbol provided.');
+    console.error('Usage: node get_performance.js <ticker> <range>');
+    console.error('Supported ranges: 1d, 5d, 1mo, 3mo, 6mo, 1y, 2y, 5y, 10y, ytd, max');
     process.exit(1);
   }
 
-  const url = `https://query1.finance.yahoo.com/v8/finance/chart/${ticker.toUpperCase()}?range=1mo&interval=1d`;
+  const url = `https://query1.finance.yahoo.com/v8/finance/chart/${ticker.toUpperCase()}?range=${range}&interval=1d`;
 
   const options = {
     headers: {
@@ -38,7 +44,7 @@ async function get1MonthChange() {
         const result = json.chart.result && json.chart.result[0];
 
         if (!result || !result.timestamp || result.timestamp.length === 0) {
-          console.error(`Error: Could not find 1-month data for ticker "${ticker}".`);
+          console.error(`Error: Could not find "${range}" data for ticker "${ticker}".`);
           process.exit(1);
         }
 
@@ -46,7 +52,7 @@ async function get1MonthChange() {
         const currentPrice = meta.regularMarketPrice;
         const closePrices = result.indicators.quote[0].close;
         
-        // Find the first valid starting price
+        // Find the first valid starting price in the range
         let startPrice = null;
         for (let i = 0; i < closePrices.length; i++) {
           if (closePrices[i] !== null && closePrices[i] !== undefined) {
@@ -64,7 +70,9 @@ async function get1MonthChange() {
 
         console.log(`Symbol: ${meta.symbol}`);
         console.log(`Current Price: ${currentPrice.toFixed(2)} ${meta.currency}`);
-        console.log(`1-Month Change: ${changePercent.toFixed(2)}%`);
+        console.log(`Range: ${range}`);
+        console.log(`Start Price (at beginning of range): ${startPrice.toFixed(2)}`);
+        console.log(`Change: ${changePercent.toFixed(2)}%`);
       } catch (error) {
         console.error('Error parsing response from Yahoo Finance.');
         console.error(error.message);
@@ -77,4 +85,4 @@ async function get1MonthChange() {
   });
 }
 
-get1MonthChange();
+getPerformance();
